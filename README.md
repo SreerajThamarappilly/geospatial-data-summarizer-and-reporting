@@ -30,7 +30,7 @@ The application uses a microservices architecture with the following components:
 ## Directory Structure
 
 ```bash
-geospatial_summarizer/
+geospatial-data-summarizer-and-reporting/
 ├── app.py
 ├── azure_function/
 │   └── __init__.py
@@ -67,6 +67,31 @@ PINECONE_ENVIRONMENT=your_pinecone_environment
 REDIS_HOST=your_redis_host
 REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
+```
+
+## Running the Application Locally
+
+- **Ensure all Environment Variables are Set**:
+    - Verify that the .env file contains all the necessary variables.
+
+- **Start the FastAPI Application**:
+
+```bash
+uvicorn app:app --reload
+```
+
+## Testing the Application
+
+- **Submitting Data**: Use Postman or CURL to submit a dataset.
+
+```bash
+curl -X POST "http://localhost:8000/submit_data" -F "file=@path_to_your_dataset"
+```
+
+- **Retrieving Summary**:
+
+```bash
+curl -X GET "http://localhost:8000/get_summary/{task_id}"
 ```
 
 ## License
