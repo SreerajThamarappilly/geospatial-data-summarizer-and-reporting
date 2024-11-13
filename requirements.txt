@@ -1,0 +1,10 @@
+fastapi==0.111.1
+uvicorn==0.30.1
+python-dotenv==1.0.1
+azure-storage-blob==12.23.1
+azure-servicebus==7.13.0
+azure-functions==1.21.3
+aioredis==2.0.1
+openai==1.54.3
+pinecone-client==5.0.1
+langchain==0.3.7
