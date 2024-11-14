@@ -3,46 +3,127 @@
 import os
 import openai
 import pinecone
-
-# Load environment variables
+import rasterio
 from dotenv import load_dotenv
 
+# Load environment variables from the .env file
 load_dotenv()
 
+# Retrieve API keys and other configuration from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT")
-INDEX_NAME = "geospatial-embeddings"
+PINECONE_INDEX_NAME = "geospatial-embeddings"  # Name of the Pinecone index
+PINECONE_REGION = os.getenv("PINECONE_REGION")  # e.g., "us-east-1-aws" or "us-west1-gcp"
 
+# Set the OpenAI API key
 openai.api_key = OPENAI_API_KEY
 
-# Initialize Pinecone
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
-if INDEX_NAME not in pinecone.list_indexes():
-    pinecone.create_index(INDEX_NAME, dimension=1536)  # Assuming OpenAI's embedding size
+# Initialize the Pinecone client
+pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_REGION)
 
-index = pinecone.Index(INDEX_NAME)
+# Check if the index exists; if not, create a new index
+if PINECONE_INDEX_NAME not in pinecone.list_indexes():
+    # Create a new index with the specified name and dimension
+    pinecone.create_index(name=PINECONE_INDEX_NAME, dimension=1536, metric="cosine")
+
+# Connect to the index
+index = pinecone.Index(PINECONE_INDEX_NAME)
 
 def generate_embedding(file_path):
+    """
+    Generates an embedding vector for the given geospatial data file.
+
+    Args:
+        file_path (str): The local file path to the geospatial data.
+
+    Returns:
+        list: The embedding vector representing the geospatial data.
+    """
     # Read file content
     with open(file_path, 'rb') as f:
         content = f.read()
 
-    # For simplicity, we'll assume the content is text-based metadata
-    # In practice, you might extract metadata or textual representation
+    # Extract textual representation from the geospatial data
+    # This function should be implemented to parse actual geospatial data
     text_representation = extract_text_from_geospatial_data(content)
 
-    # Generate embedding
+    # Generate embedding using OpenAI's Embedding API
     response = openai.Embedding.create(
         input=text_representation,
         model="text-embedding-ada-002"
     )
+
+    # Extract the embedding vector from the API response
     embedding = response['data'][0]['embedding']
     return embedding
 
 def store_embedding(task_id, embedding):
-    index.upsert([(task_id, embedding)])
+    """
+    Stores the embedding vector in the Pinecone index with the associated task ID.
+
+    Args:
+        task_id (str): The unique identifier for the task.
+        embedding (list): The embedding vector to store.
+    """
+    # Prepare the data for upsert
+    upsert_data = [(task_id, embedding)]
+
+    # Upsert the embedding into the Pinecone index
+    index.upsert(vectors=upsert_data)
 
 def extract_text_from_geospatial_data(content):
-    # Placeholder function to extract text from geospatial data
-    return "Extracted textual representation of geospatial data."
+    """
+    Extracts a textual representation from geospatial data content.
+
+    Args:
+        content (bytes): The raw content of the geospatial data file.
+
+    Returns:
+        str: The extracted textual representation of the geospatial data.
+    """
+    with rasterio.MemoryFile(content) as memfile:
+        with memfile.open() as dataset:
+            # Extract metadata
+            metadata = dataset.meta
+            description = dataset.descriptions
+            # Combine metadata into a text representation
+            text_representation = f"Metadata: {metadata}, Descriptions: {description}"
+            return text_representation
+
+def query_similar_embeddings(task_id, top_k=5):
+    """
+    Queries the Pinecone index for embeddings similar to the one associated with the given task ID.
+
+    Args:
+        task_id (str): The unique identifier for the task.
+        top_k (int): The number of similar embeddings to retrieve.
+
+    Returns:
+        list: A list of IDs and scores of similar embeddings.
+    """
+    # Fetch the embedding vector for the given task ID
+    response = index.fetch(ids=[task_id])
+    if task_id in response['vectors']:
+        query_embedding = response['vectors'][task_id]['values']
+
+        # Perform similarity search in the index
+        search_response = index.query(
+            vector=query_embedding,
+            top_k=top_k,
+            include_values=False,
+            include_metadata=False
+        )
+
+        # Return the IDs of similar embeddings
+        return search_response['matches']
+    else:
+        return []
+
+def delete_embedding(task_id):
+    """
+    Deletes the embedding associated with the given task ID from the Pinecone index.
+
+    Args:
+        task_id (str): The unique identifier for the task.
+    """
+    index.delete(ids=[task_id])
