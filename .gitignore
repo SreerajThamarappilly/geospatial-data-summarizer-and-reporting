@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# azure_function/ files to ignore
+azure_function/.gitignore
+azure_function/.vscode/
+
 # C extensions
 *.so
 

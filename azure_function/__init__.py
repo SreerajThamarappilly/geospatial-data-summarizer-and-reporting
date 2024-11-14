@@ -6,39 +6,50 @@ import os
 from utils import azure_storage, embeddings, summarizer
 import asyncio
 
-# Load environment variables
+# Load environment variables from the .env file
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Main entry point for the Azure Function
 async def main(msg: func.ServiceBusMessage):
+    """
+    Azure Function triggered by a message from Azure Service Bus.
+
+    Processes the geospatial data file associated with the task ID, generates embeddings,
+    stores them in Pinecone, generates a summary, and caches the summary.
+
+    Args:
+        msg (func.ServiceBusMessage): The message received from the Service Bus queue.
+    """
+    # Retrieve task ID and file path from the message properties and body
     task_id = msg.application_properties.get("task_id")
     file_path = msg.get_body().decode("utf-8")
 
     logging.info(f"Processing task_id: {task_id}, file_path: {file_path}")
 
     try:
-        # Download file from Blob Storage
+        # Download the geospatial data file from Azure Blob Storage
         local_file_path = await azure_storage.download_file_from_blob(file_path)
 
-        # Generate embeddings
+        # Generate embeddings for the geospatial data
         embedding = embeddings.generate_embedding(local_file_path)
 
-        # Store embeddings in Pinecone
+        # Store the embedding in the Pinecone index
         embeddings.store_embedding(task_id, embedding)
 
-        # Generate summary using LangChain and GPT-4
+        # Generate a summary using LangChain and GPT-4
         summary = summarizer.generate_summary(task_id)
 
-        # Cache the summary
+        # Cache the summary in Azure Redis Cache
         await azure_storage.cache_summary(task_id, summary)
 
-        # Update processing status
+        # Update the processing status to 'completed'
         await azure_storage.update_processing_status(task_id, "completed")
 
         logging.info(f"Task {task_id} completed successfully.")
 
     except Exception as e:
         logging.error(f"Task {task_id} failed with error: {str(e)}")
-        # Update processing status
+        # Update the processing status to 'failed'
         await azure_storage.update_processing_status(task_id, "failed")
