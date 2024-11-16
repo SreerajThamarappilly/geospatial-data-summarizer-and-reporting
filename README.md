@@ -34,6 +34,12 @@ geospatial-data-summarizer-and-reporting/
 ├── app.py
 ├── azure_function/
 │   └── __init__.py
+│   └── function_app.py
+│   └── function.json
+│   └── .funcignore
+│   └── host.json
+│   └── local.settings.json
+│   └── requirements.txt
 ├── utils/
 │   ├── __init__.py
 │   ├── azure_storage.py
