@@ -2,8 +2,9 @@
 
 import os
 import openai
-from langchain import LLMChain, PromptTemplate
-from langchain.llms import OpenAI
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from langchain_community.llms import OpenAI
 import pinecone
 from dotenv import load_dotenv
 
@@ -20,10 +21,10 @@ PINECONE_REGION = os.getenv("PINECONE_REGION")  # e.g., "us-east-1-aws" or "us-w
 openai.api_key = OPENAI_API_KEY
 
 # Initialize the Pinecone client
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_REGION)
+pc = pinecone.Pinecone(api_key=PINECONE_API_KEY, environment=PINECONE_REGION)
 
 # Connect to the existing index
-index = pinecone.Index(PINECONE_INDEX_NAME)
+index = pc.Index(host=PINECONE_INDEX_NAME)
 
 def generate_summary(task_id):
     """

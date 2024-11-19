@@ -7,7 +7,7 @@ from azure.servicebus import ServiceBusMessage
 import uuid
 import os
 from dotenv import load_dotenv
-from utils import azure_storage
+from azure_function.utils import azure_storage
 
 # Initialize FastAPI application
 app = FastAPI()
@@ -112,4 +112,27 @@ async def get_summary(task_id: str):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found."
+        )
+
+@app.get("/task_status/{task_id}")
+async def get_task_status(task_id: str):
+    """
+    Endpoint to fetch task progress and status.
+
+    Args:
+        task_id (str): The unique identifier for the processing task.
+
+    Returns:
+        JSONResponse: A response containing the summary or status of the task.
+    """
+    status = redis_client.get(f"task_status:{task_id}")
+    if status:
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={"status": status, "data": {"task_id": task_id, "status": "Processing"}}
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"status": "not found", "data": "Task not found."}
         )

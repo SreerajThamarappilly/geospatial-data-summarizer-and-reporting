@@ -2,7 +2,7 @@
 
 import os
 import openai
-import pinecone
+from pinecone import Pinecone
 import rasterio
 from dotenv import load_dotenv
 
@@ -19,15 +19,22 @@ PINECONE_REGION = os.getenv("PINECONE_REGION")  # e.g., "us-east-1-aws" or "us-w
 openai.api_key = OPENAI_API_KEY
 
 # Initialize the Pinecone client
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_REGION)
+pc = Pinecone(api_key=PINECONE_API_KEY)
 
-# Check if the index exists; if not, create a new index
-if PINECONE_INDEX_NAME not in pinecone.list_indexes():
-    # Create a new index with the specified name and dimension
-    pinecone.create_index(name=PINECONE_INDEX_NAME, dimension=1536, metric="cosine")
+# Check if the index exists and create it if it doesn't
+if PINECONE_INDEX_NAME not in pc.list_indexes().names():
+    pc.create_index(
+        name=PINECONE_INDEX_NAME,
+        dimension=1536,
+        metric='euclidean',
+        pod_type='s1',
+        pods=1,
+        replicas=1,
+        metadata_config={'indexed': []}
+    )
 
-# Connect to the index
-index = pinecone.Index(PINECONE_INDEX_NAME)
+# Access the index
+index = pc.Index(host=PINECONE_INDEX_NAME)
 
 def generate_embedding(file_path):
     """
@@ -66,7 +73,7 @@ def store_embedding(task_id, embedding):
         embedding (list): The embedding vector to store.
     """
     # Prepare the data for upsert
-    upsert_data = [(task_id, embedding)]
+    upsert_data = [Vector(id=task_id, values=embedding)]
 
     # Upsert the embedding into the Pinecone index
     index.upsert(vectors=upsert_data)
