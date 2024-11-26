@@ -5,7 +5,6 @@ from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.blob import ContentSettings
 import redis.asyncio as redis
 from dotenv import load_dotenv
-import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -84,7 +83,7 @@ async def get_summary_from_cache(task_id):
     """
     try:
         print(f"host={REDIS_HOST}, port={REDIS_PORT}, password={REDIS_PASSWORD}")
-        redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+        redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, socket_connect_timeout=30, socket_timeout=30)
         summary = await redis_client.get(f"summary:{task_id}")
         await redis_client.aclose()
         return summary.decode('utf-8') if summary else None
